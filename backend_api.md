@@ -1,0 +1,15 @@
+>/api/users
+    get(+pagination)
+    create
+    update(banch)
+    delete(banch)
+>/api/user/{id}
+    update
+    delete
+    get
+>/api/settings
+    get
+    update
+>/api/login
+>/api/signin
+>/
