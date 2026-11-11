@@ -1,14 +1,15 @@
 from datetime import datetime, timezone, UTC
+from turtle import back
 from sqlalchemy import DateTime, ForeignKey
 from uuid import UUID, uuid7
-
 from sqlalchemy import TIMESTAMP, Boolean, String, Uuid, false
 from sqlalchemy.orm import Mapped, mapped_column
-from core.config import DEFAULT_DATETIME_FUNK
-from models.base import Base, Role
-
 from sqlalchemy.orm import relationship
 
+from backend.models.alert_status_history import AlertStatusHistory
+from models.alert import Alert
+from core.config import DEFAULT_DATETIME_FUNK
+from models.base import Base, Role
 
 class User(Base):
     __tablename__ = "users"
@@ -42,3 +43,7 @@ class User(Base):
     )
 
     role: Mapped["Role"] = relationship(back_populates="users")
+    created_alerts: Mapped[list["Alert"]] = relationship(
+        back_populates="creator"
+    )
+    alert_change_history: Mapped[list["AlertStatusHistory"]] = relationship(back_populates="editor")

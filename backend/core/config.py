@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,3 +17,5 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+DEFAULT_DATETIME_FUNK=lambda: datetime.now(UTC)
