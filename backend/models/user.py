@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.orm import relationship
 
 from backend.models.alert_status_history import AlertStatusHistory
+from backend.models.alert_versions import AlertVersion
 from models.alert import Alert
 from core.config import DEFAULT_DATETIME_FUNK
 from models.base import Base, Role
@@ -47,3 +48,5 @@ class User(Base):
         back_populates="creator"
     )
     alert_change_history: Mapped[list["AlertStatusHistory"]] = relationship(back_populates="editor")
+    edited_versions: Mapped[list["AlertVersion"]] = relationship(back_populates="editor")
+    
