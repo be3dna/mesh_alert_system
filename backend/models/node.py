@@ -2,7 +2,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DOUBLE_PRECISION, Date, DateTime, ForeignKey, String, Uuid
+from sqlalchemy import DOUBLE_PRECISION, CheckConstraint, Date, DateTime, ForeignKey, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.core.config import DEFAULT_DATETIME_FUNK
@@ -54,3 +54,6 @@ class Node(Base):
     )
 
     status: Mapped["NodeStatus"] = relationship(back_populates="node_statuses.id")
+
+    CheckConstraint("latitude BETWEEN -90 AND 90")
+    CheckConstraint("longitude BETWEEN -180 AND 180")
