@@ -1,17 +1,15 @@
-
-
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, String, Uuid, text
+from sqlalchemy import DateTime, ForeignKey, String, Text, Uuid, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.core.config import DEFAULT_DATETIME_FUNK
+from core.config import DEFAULT_DATETIME_FUNK
 from models.base import Base
-from models.user import User
+
 
 class RoleHistory(Base):
-    __tablename__="role_assignment_history"
+    __tablename__ = "role_assignment_history"
 
     user_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False
@@ -29,17 +27,13 @@ class RoleHistory(Base):
         Uuid(as_uuid=True), ForeignKey("role_assignment_history.id"), nullable=True
     )
 
+
 class Role(Base):
-    __tablename__="roles"
+    __tablename__ = "roles"
 
     name: Mapped[str] = mapped_column(
-        String(50),
-        unique=True,
-        nullable=False,
-        default="user"
+        String(50), unique=True, nullable=False, default="user"
     )
-    description: Mapped[str] = mapped_column(
-        text
-    )
+    description: Mapped[str] = mapped_column(Text)
 
-    users: Mapped[list["User"]] = relationship(back_populates="role")
+    users: Mapped[list["User"]] = relationship("User", back_populates="role")  # noqa: F821

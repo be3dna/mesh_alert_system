@@ -1,5 +1,5 @@
 from datetime import datetime, UTC
-from uuid import UUID, uuid7
+from uuid import UUID
 
 from sqlalchemy import (
     DateTime,
@@ -11,7 +11,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.models.user import User
+from models.user import User
 from models.base import Base
 
 

@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import JSON, ForeignKey, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.models.base import Base
+from models.base import Base
 
 class GatewayStatus(Base):
     __tablename__="gateway_statuses"

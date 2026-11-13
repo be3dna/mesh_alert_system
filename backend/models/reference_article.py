@@ -1,11 +1,11 @@
 from datetime import datetime, UTC
-from uuid import UUID, uuid7
+from uuid import UUID
 
 from sqlalchemy import DateTime, ForeignKey, Uuid, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.core.config import DEFAULT_DATETIME_FUNK
-from backend.models.user import User
+from core.config import DEFAULT_DATETIME_FUNK
+from models.user import User
 from models.base import Base
 
 

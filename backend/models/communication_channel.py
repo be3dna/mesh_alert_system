@@ -1,9 +1,8 @@
-from uuid import UUID, uuid7
-
+from uuid import UUID
 from sqlalchemy import ForeignKey, String, Uuid, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.models.gateway import Gateway
+from models.gateway import Gateway
 from models.base import Base
 
 
@@ -11,6 +10,7 @@ class CommunicationChannel(Base):
     __tablename__ = "communication_channels"
 
     gateway_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
         ForeignKey("gateways.id"),
         nullable=False,
         index=True

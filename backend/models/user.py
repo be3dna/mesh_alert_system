@@ -1,20 +1,17 @@
 from datetime import datetime, timezone, UTC
 from turtle import back
 from sqlalchemy import DateTime, ForeignKey
-from uuid import UUID, uuid7
+from uuid import UUID
 from sqlalchemy import TIMESTAMP, Boolean, String, Uuid, false
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.orm import relationship
 
-from backend.models.alert_status_history import AlertStatusHistory
-from backend.models.alert_versions import AlertVersion
-from models.alert import Alert
 from core.config import DEFAULT_DATETIME_FUNK
-from models.base import Base, Role
+from models.base import Base
+
 
 class User(Base):
     __tablename__ = "users"
-
 
     first_name: Mapped[str] = mapped_column(String(50), nullable=False)
 
@@ -27,8 +24,10 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=DEFAULT_DATETIME_FUNK() 
-        #TODO: is UTC best choise? maybe msk?
+        DateTime(timezone=True),
+        nullable=False,
+        default=DEFAULT_DATETIME_FUNK(),
+        # TODO: is UTC best choise? maybe msk?
     )
 
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -43,10 +42,11 @@ class User(Base):
         Uuid(as_uuid=True), ForeignKey("roles.id"), nullable=False
     )
 
-    role: Mapped["Role"] = relationship(back_populates="users")
-    created_alerts: Mapped[list["Alert"]] = relationship(
-        back_populates="creator"
+    role: Mapped["Role"] = relationship(back_populates="users")  # noqa: F821
+    created_alerts: Mapped[list["Alert"]] = relationship(back_populates="creator")  # noqa: F821
+    alert_change_history: Mapped[list["AlertStatusHistory"]] = relationship(  # noqa: F821
+        back_populates="editor"
     )
-    alert_change_history: Mapped[list["AlertStatusHistory"]] = relationship(back_populates="editor")
-    edited_versions: Mapped[list["AlertVersion"]] = relationship(back_populates="editor")
-    
+    edited_versions: Mapped[list["AlertVersion"]] = relationship(  # noqa: F821
+        back_populates="editor"
+    )

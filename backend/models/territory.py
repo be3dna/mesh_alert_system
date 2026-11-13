@@ -4,7 +4,6 @@ from uuid import UUID
 from sqlalchemy import JSON, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from models.alert import Alert
 from models.base import Base
 
 
@@ -23,7 +22,7 @@ class AlertTerritory(Base):
         ForeignKey("territories.id"), nullable=False, index=True
     )
 
-    alert: Mapped["Alert"] = relationship(back_populates="alert_territories")
+    alert: Mapped["Alert"] = relationship(back_populates="alert_territories")  # noqa: F821
 
     territory: Mapped["Territory"] = relationship(back_populates="alert_territories")
 
@@ -37,6 +36,6 @@ class Territory(Base):
 
     coordinates: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
 
-    alerts: Mapped[list["Alert"]] = relationship(
+    alerts: Mapped[list["Alert"]] = relationship(  # noqa: F821
         back_populates="territory", cascade="all, delete-orphan"
     )
