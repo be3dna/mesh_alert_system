@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 from models.base import Base
-from models.user import User
 import os
 from dotenv import load_dotenv
 from sqlalchemy.engine import URL
@@ -43,10 +42,20 @@ url = URL.create(
 )
 
 config.set_main_option(
-    "sqlalchemy.url",
-    url.render_as_string(hide_password=False).replace("%", "%%")
+    "sqlalchemy.url", url.render_as_string(hide_password=False).replace("%", "%%")
 )
 
+
+##postgis
+POSTGIS_TABLES = {
+    "spatial_ref_sys",
+}
+
+
+def include_object(object, name, type_, reflected, compare_to):
+    return not (type_ == "table" and name in POSTGIS_TABLES)
+
+##standart funk
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
@@ -72,7 +81,12 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        include_object=include_object,
+        compare_type=True,
+    )
 
     with context.begin_transaction():
         context.run_migrations()
