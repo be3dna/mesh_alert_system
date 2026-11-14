@@ -1,7 +1,7 @@
-from typing import Any
 from uuid import UUID
 
-from sqlalchemy import JSON, ForeignKey, String, Text, UniqueConstraint
+from geoalchemy2 import Geometry
+from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import Base
@@ -32,10 +32,12 @@ class Territory(Base):
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    description: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    coordinates: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
-
-    alerts: Mapped[list["Alert"]] = relationship(  # noqa: F821
-        back_populates="territory", cascade="all, delete-orphan"
+    geom: Mapped[object] = mapped_column(
+        Geometry(geometry_type="MULTIPOLYGON", srid=4326, spatial_index=True),
+        nullable=False,
+    )
+    alert_territories: Mapped[list["AlertTerritory"]] = relationship(
+        "AlertTerritory", back_populates="territory"
     )

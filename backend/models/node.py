@@ -8,6 +8,28 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.config import DEFAULT_DATETIME_FUNK
 from models.base import Base
 
+class NodeGateway(Base):
+    __tablename__="node_gateways"
+
+    node_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("nodes.id"),
+        nullable=False
+    )
+    gateway_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("gateways.id"),
+        nullable=False
+    )
+    last_seen: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=DEFAULT_DATETIME_FUNK
+    )
+
+    node: Mapped["Node"] = relationship("Node", back_populates="gateways")
+    gateway: Mapped["Gateway"] = relationship("Gateway", back_populates="nodes")  # noqa: F821
+
 class NodeStatus(Base):
     __tablename__="node_statuses"
 
@@ -55,6 +77,7 @@ class Node(Base):
     )
 
     status: Mapped["NodeStatus"] = relationship(back_populates="node_statuses.id")
+    gateways: Mapped["NodeGateway"] = relationship(back_populates="node")
 
     CheckConstraint("latitude BETWEEN -90 AND 90")
     CheckConstraint("longitude BETWEEN -180 AND 180")

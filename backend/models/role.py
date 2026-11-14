@@ -27,6 +27,10 @@ class RoleHistory(Base):
         Uuid(as_uuid=True), ForeignKey("role_assignment_history.id"), nullable=True
     )
 
+    user: Mapped["User"] = relationship("User", back_populates="role_history")  # noqa: F821
+    role: Mapped["Role"] = relationship(back_populates="user_history")
+    changer: Mapped["User"] = relationship("User", back_populates="role_changer_history")  # noqa: F821
+
 
 class Role(Base):
     __tablename__ = "roles"
@@ -37,3 +41,4 @@ class Role(Base):
     description: Mapped[str] = mapped_column(Text)
 
     users: Mapped[list["User"]] = relationship("User", back_populates="role")  # noqa: F821
+    user_history: Mapped[list["RoleHistory"]] = relationship(back_populates="role")

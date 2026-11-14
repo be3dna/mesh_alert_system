@@ -9,10 +9,46 @@ from sqlalchemy import UniqueConstraint
 
 from models.delivery_attempt import DeliveryAttempt
 from models.node import Node
-from models.territory import Territory
 from models.user import User
 from core.config import DEFAULT_DATETIME_FUNK
 from models.base import Base
+
+
+# Отправка, Ошибка, Повторная отправка, Доставлено
+class AlertDeliveryStatus(Base):
+    __tablename__ = "alert_delivery_statuses"
+
+    name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+
+    description: Mapped[str] = mapped_column(Text)
+
+    deliveries: Mapped[list["AlertDelivery"]] = relationship(back_populates="status")
+
+
+# Уровень важности оповещения
+class AlertSeverity(Base):
+    __tablename__ = "alert_severities"
+    title: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+
+    alerts: Mapped[list["Alert"]] = relationship(back_populates="severity")
+
+
+# draft, pending, active, completed, cancelled.
+class AlertStatus(Base):
+    __tablename__ = "alert_statuses"
+
+    name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    description: Mapped[str] = mapped_column(Text)
+
+    alerts: Mapped[list["Alert"]] = relationship(back_populates="current_status")
+
+
+class AlertType(Base):
+    __tablename__ = "alert_types"
+
+    name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+
+    alerts: Mapped[list["Alert"]] = relationship(back_populates="alert_type")
 
 
 class AlertProposal(Base):
@@ -86,7 +122,9 @@ class AlertDelivery(Base):
         ForeignKey("nodes.id"), nullable=False, index=True
     )
 
-    status: Mapped[str] = mapped_column(String(30), nullable=False)
+    status_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("alert_delivery_statuses.id"), nullable=False
+    )
 
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=DEFAULT_DATETIME_FUNK
@@ -98,10 +136,7 @@ class AlertDelivery(Base):
 
     acknowledgement_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
-    alert: Mapped["Alert"] = relationship(
-        "Alert",
-        back_populates="deliveries"
-    )
+    alert: Mapped["Alert"] = relationship("Alert", back_populates="deliveries")
 
     node: Mapped["Node"] = relationship(back_populates="deliveries")
 
@@ -109,16 +144,11 @@ class AlertDelivery(Base):
         "DeliveryAttempt", back_populates="delivery", cascade="all, delete-orphan"
     )
 
+    status: Mapped["AlertDeliveryStatus"] = relationship(back_populates="deliveries")
+
     __table_args__ = (
         UniqueConstraint("alert_id", "node_id", name="uq_alert_delivery_node"),
     )
-
-
-class AlertSeverity(Base):
-    __tablename__ = "alert_severities"
-    title: Mapped[str] = mapped_column(String(50), nullable=False)
-
-    alerts: Mapped[list["Alert"]] = relationship(back_populates="severity")
 
 
 class AlertStatusHistory(Base):
@@ -145,24 +175,6 @@ class AlertStatusHistory(Base):
     editor: Mapped["User"] = relationship(back_populates="alert_change_history")
 
 
-# draft, pending, active, completed, cancelled.
-class AlertStatus(Base):
-    __tablename__ = "alert_statuses"
-
-    name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
-    description: Mapped[str] = mapped_column(Text)
-
-    alerts: Mapped[list["Alert"]] = relationship(back_populates="current_status")
-
-
-class AlertType(Base):
-    __tablename__ = "alert_types"
-
-    name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
-
-    alerts: Mapped[list["Alert"]] = relationship(back_populates="alert_type")
-
-
 class AlertVersion(Base):
     __tablename__ = "alert_versions"
 
@@ -173,7 +185,7 @@ class AlertVersion(Base):
     alert_version_number: Mapped[int] = mapped_column(Integer, nullable=False)
 
     previous_version_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("alert_versions.id"), nullable=False
+        Uuid(as_uuid=True), ForeignKey("alert_versions.id"), nullable=True
     )
 
     changed_by: Mapped[UUID] = mapped_column(
@@ -216,19 +228,17 @@ class Alert(Base):
     current_status_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("alert_statuses.id"), nullable=False
     )
-    territory_id: Mapped[UUID | None] = mapped_column(
-        Uuid, ForeignKey("territories.id"), nullable=True
-    )
 
     CheckConstraint("ends_at IS NULL OR ends_at >= starts_at", name="check_alert_dates")
 
     creator: Mapped["User"] = relationship(back_populates="created_alerts")
     current_status: Mapped["AlertStatus"] = relationship(back_populates="alerts")
-    territory: Mapped["Territory | None"] = relationship(back_populates="alerts")
     severity: Mapped["AlertSeverity"] = relationship(back_populates="alerts")
     alert_type: Mapped["AlertType"] = relationship(back_populates="alerts")
     versions: Mapped[list["AlertVersion"]] = relationship(back_populates="alert")
     deliveries: Mapped[list["AlertDelivery"]] = relationship(
-        "AlertDelivery",
-        back_populates="alert"
+        "AlertDelivery", back_populates="alert"
+    )
+    alert_territories: Mapped[list["AlertTerritory"]] = relationship(  # noqa: F821
+        "AlertTerritory", back_populates="alert"
     )

@@ -63,5 +63,6 @@ class Gateway(Base):
         
     status: Mapped["GatewayStatus"] = relationship(back_populates="gateways")
     gateway_type: Mapped["GatewayType"] = relationship(back_populates="gateways")
+    nodes: Mapped["NodeGateway"] = relationship(back_populates="gateway")  # noqa: F821
 
 
