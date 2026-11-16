@@ -1,6 +1,14 @@
-from datetime import UTC, datetime
+from datetime import datetime
 from uuid import UUID
-from sqlalchemy import JSON, CheckConstraint, Enum as SQLEnum, Float, Integer
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    Enum as SQLEnum,
+    Float,
+    Integer,
+    Null,
+)
 
 from sqlalchemy import DateTime, ForeignKey, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -51,37 +59,19 @@ class AlertType(Base):
     alerts: Mapped[list["Alert"]] = relationship(back_populates="alert_type")
 
 
+class ReviewDecision(Base):
+    __tablename__ = "review_decisions"
+    name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    description: Mapped[str | Null] = mapped_column(Text, nullable=True)
+
+    proposals: Mapped[list["AlertProposal"]] = relationship(back_populates="decision")
+
+
 class AlertProposal(Base):
     __tablename__ = "alert_proposals"
 
-    proposed_by: Mapped[UUID] = mapped_column(
-        ForeignKey("users.id"), nullable=False, index=True
-    )
-
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
-
-    description: Mapped[str] = mapped_column(Text, nullable=False)
-
-    proposed_severity: Mapped[str] = mapped_column(String(30), nullable=False)
-
-    latitude: Mapped[float] = mapped_column(Float, nullable=False)
-
-    longitude: Mapped[float] = mapped_column(Float, nullable=False)
-
-    radius_meters: Mapped[int] = mapped_column(Integer, nullable=False)
-
-    type: Mapped[str] = mapped_column(String(50), nullable=False)
-
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
-    )
-
-    starts_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-
-    ends_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
+    alert_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("alerts.id"), nullable=True
     )
 
     reviewed_by: Mapped[UUID | None] = mapped_column(
@@ -92,23 +82,19 @@ class AlertProposal(Base):
         DateTime(timezone=True), nullable=True
     )
 
-    decision: Mapped[str] = mapped_column(String(30), nullable=False, default="pending")
-
-    created_alert_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("alerts.id"), nullable=True
+    decision_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("review_decisions.id"), nullable=False
     )
 
-    proposer: Mapped["User"] = relationship(
-        foreign_keys=[proposed_by], back_populates="proposed_alerts"
-    )
+    review_comment: Mapped[str] = mapped_column(Text, nullable=False)
 
     reviewer: Mapped["User | None"] = relationship(
-        foreign_keys=[reviewed_by], back_populates="reviewed_proposals"
+        foreign_keys=[reviewed_by], back_populates="proposals"
     )
 
-    created_alert: Mapped["Alert | None"] = relationship(
-        back_populates="source_proposal"
-    )
+    alert: Mapped["Alert | None"] = relationship(back_populates="proposal")
+
+    decision: Mapped["ReviewDecision"] = relationship(back_populates="proposals")
 
 
 class AlertDelivery(Base):
@@ -123,7 +109,7 @@ class AlertDelivery(Base):
     )
 
     status_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("alert_delivery_statuses.id"), nullable=False
+        Uuid, ForeignKey("alert_delivery_statuses.id"), nullable=False
     )
 
     started_at: Mapped[datetime] = mapped_column(
@@ -155,17 +141,17 @@ class AlertStatusHistory(Base):
     __tablename__ = "alert_status_history"
 
     alert_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("alerts.id"), nullable=False
+        Uuid, ForeignKey("alerts.id"), nullable=False
     )
     status_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("alert_statuses.id"), nullable=False
+        Uuid, ForeignKey("alert_statuses.id"), nullable=False
     )
     changed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=DEFAULT_DATETIME_FUNK
     )
     reason: Mapped[str] = mapped_column(Text)
     changed_by: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False
+        Uuid, ForeignKey("users.id"), nullable=False
     )
 
     alert: Mapped["Alert"] = relationship(back_populates="alert_statuses_history")
@@ -179,17 +165,17 @@ class AlertVersion(Base):
     __tablename__ = "alert_versions"
 
     alert_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("alerts.id"), nullable=False
+        Uuid, ForeignKey("alerts.id"), nullable=False
     )
 
     alert_version_number: Mapped[int] = mapped_column(Integer, nullable=False)
 
     previous_version_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("alert_versions.id"), nullable=True
+        Uuid, ForeignKey("alert_versions.id"), nullable=True
     )
 
     changed_by: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False
+        Uuid, ForeignKey("users.id"), nullable=False
     )
 
     changed_at: Mapped[datetime] = mapped_column(
@@ -210,10 +196,10 @@ class Alert(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text)
     severity_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("alert_severities.id"), nullable=False
+        Uuid, ForeignKey("alert_severities.id"), nullable=False
     )
     alert_type_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("alert_types.id"), nullable=False
+        Uuid, ForeignKey("alert_types.id"), nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=DEFAULT_DATETIME_FUNK
@@ -223,11 +209,12 @@ class Alert(Base):
     )
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     created_by: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False
+        Uuid, ForeignKey("users.id"), nullable=False
     )
     current_status_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("alert_statuses.id"), nullable=False
+        Uuid, ForeignKey("alert_statuses.id"), nullable=False
     )
+    is_test: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     CheckConstraint("ends_at IS NULL OR ends_at >= starts_at", name="check_alert_dates")
 
@@ -240,5 +227,6 @@ class Alert(Base):
         "AlertDelivery", back_populates="alert"
     )
     alert_territories: Mapped[list["AlertTerritory"]] = relationship(  # noqa: F821
-        "AlertTerritory", back_populates="alert"
+        back_populates="alert"
     )
+    proposal: Mapped["AlertProposal"] = relationship(back_populates="alert")

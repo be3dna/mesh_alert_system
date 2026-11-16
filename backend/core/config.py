@@ -18,4 +18,4 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-DEFAULT_DATETIME_FUNK=lambda: datetime.now(UTC)
+DEFAULT_DATETIME_FUNK=lambda: datetime.now(UTC)  # TODO: is UTC best choise? maybe msk?

@@ -42,5 +42,6 @@ class User(Base):
     edited_versions: Mapped[list["AlertVersion"]] = relationship(  # noqa: F821
         back_populates="editor"
     )
-    role_history: Mapped[list["RoleHistory"]] = relationship("RoleHistory", back_populates="user")  # noqa: F821
-    role_changer_history: Mapped[["RoleHistory"]] = relationship("RoleHistory", back_populates="changer")  # noqa: F821
+    role_history: Mapped[list["RoleHistory"]] = relationship(back_populates="user")  # noqa: F821
+    role_changer_history: Mapped[["RoleHistory"]] = relationship(back_populates="changer")  # noqa: F821
+    proposals: Mapped[list["AlertProposal"]] = relationship(back_populates="reviewer")  # noqa: F821
