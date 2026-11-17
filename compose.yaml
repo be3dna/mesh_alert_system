@@ -1,7 +1,7 @@
 services:
   db:
     image: postgis/postgis:17-3.7
-    container_name: postgres_db
+    container_name: db
     restart: unless-stopped
 
     environment:
@@ -30,7 +30,7 @@ services:
       - "8000:8000"
 
     environment:
-      DATABASE_URL: postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}
+      DATABASE_URL: postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
 
     depends_on:
       db:
