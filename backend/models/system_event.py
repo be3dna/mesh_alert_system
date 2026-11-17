@@ -55,6 +55,7 @@ class SystemEvent(Base):
         nullable=True
     )
 
-    user: Mapped["User | None"] = relationship(
+    #REL
+    user: Mapped["User | None"] = relationship( #H
         back_populates="system_events"
     )

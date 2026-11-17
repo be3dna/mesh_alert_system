@@ -15,7 +15,8 @@ class ReferenceCategory(Base):
 
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    articles: Mapped[list["ReferenceArticle"]] = relationship(back_populates="category")
+    #REL
+    articles: Mapped[list["ReferenceArticle"]] = relationship(back_populates="category") #H
 
 
 class ReferenceArticle(Base):
@@ -50,9 +51,10 @@ class ReferenceArticle(Base):
         Uuid, ForeignKey("access_groups.id"), nullable=False
     )
 
-    group: Mapped["AccessGroup"] = relationship(back_populates="references")  # noqa: F821
+    #REL
+    group: Mapped["AccessGroup"] = relationship(back_populates="references") #H # noqa: F821 
 
-    category: Mapped["ReferenceCategory"] = relationship(back_populates="articles")
+    category: Mapped["ReferenceCategory"] = relationship(back_populates="articles") #H
 
     author: Mapped["User"] = relationship(foreign_keys=[author_id])  # noqa: F821
 

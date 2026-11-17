@@ -37,6 +37,7 @@ class CommunicationChannel(Base):
         default=dict
     )
 
-    gateway: Mapped["Gateway"] = relationship(
+    #REL
+    gateway: Mapped["Gateway"] = relationship( #H
         back_populates="communication_channels"
     )

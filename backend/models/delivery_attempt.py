@@ -25,7 +25,8 @@ class DeliveryAttempt(Base):
 
     error_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    delivery: Mapped["AlertDelivery"] = relationship(  # noqa: F821
+    #REL
+    delivery: Mapped["AlertDelivery"] = relationship(  # noqa: F821 #H
         "AlertDelivery", back_populates="attempts"
     )
 

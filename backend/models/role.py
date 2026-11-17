@@ -23,9 +23,14 @@ class RoleHistory(Base):
         Uuid, ForeignKey("role_assignment_history.id"), nullable=True
     )
 
-    user: Mapped["User"] = relationship(back_populates="role_history")  # noqa: F821
-    role: Mapped["Role"] = relationship(back_populates="user_history")
-    changer: Mapped["User"] = relationship(back_populates="role_changer_history")  # noqa: F821
+    # REL
+    user: Mapped["User"] = relationship(  # H # noqa: F821
+        back_populates="role_history", foreign_keys=[user_id]
+    )
+    changer: Mapped["User"] = relationship(  # H # noqa: F821
+        back_populates="role_changer_history", foreign_keys=[assigned_by]
+    )
+    role: Mapped["Role"] = relationship(back_populates="user_history")  # H
 
 
 class Role(Base):
@@ -36,6 +41,7 @@ class Role(Base):
     )
     description: Mapped[str] = mapped_column(Text)
 
-    users: Mapped[list["User"]] = relationship(back_populates="role")  # noqa: F821
-    user_history: Mapped[list["RoleHistory"]] = relationship(back_populates="role")
-    groups: Mapped[list["AccessGroupRole"]] = relationship(back_populates="role")  # noqa: F821
+    # REL
+    users: Mapped[list["User"]] = relationship(back_populates="role")  # H  # noqa: F821
+    user_history: Mapped[list["RoleHistory"]] = relationship(back_populates="role")  # H
+    groups: Mapped[list["AccessGroupRole"]] = relationship(back_populates="role")  # noqa: F821 #H

@@ -19,7 +19,7 @@ class GatewayStatus(Base):
         Text
     )
 
-    gateways: Mapped["Gateway"] = relationship(back_populates="gateways.id")
+    gateways: Mapped[list["Gateway"]] = relationship(back_populates="status") #H
 
 class GatewayType(Base):
     __tablename__="gateway_types"
@@ -34,7 +34,8 @@ class GatewayType(Base):
         Text
     )
 
-    gateways: Mapped[list["Gateway"]] = relationship(back_populates="gateway_type")
+    #REL
+    gateways: Mapped[list["Gateway"]] = relationship(back_populates="gateway_type") #H
 
 class Gateway(Base):
     __tablename__="gateways"
@@ -60,9 +61,11 @@ class Gateway(Base):
         JSON,
         nullable=False
     )
-        
-    status: Mapped["GatewayStatus"] = relationship(back_populates="gateways")
-    gateway_type: Mapped["GatewayType"] = relationship(back_populates="gateways")
-    nodes: Mapped["NodeGateway"] = relationship(back_populates="gateway")  # noqa: F821
+
+    #REL
+    communication_channels: Mapped[list["CommunicationChannel"]] = relationship(back_populates="gateway") #H  # noqa: F821
+    status: Mapped["GatewayStatus"] = relationship(back_populates="gateways") #H
+    gateway_type: Mapped["GatewayType"] = relationship(back_populates="gateways") #H
+    nodes: Mapped["NodeGateway"] = relationship(back_populates="gateway")  #H # noqa: F821
 
 

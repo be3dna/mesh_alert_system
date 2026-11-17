@@ -30,7 +30,10 @@ class AlertDeliveryStatus(Base):
 
     description: Mapped[str] = mapped_column(Text)
 
-    deliveries: Mapped[list["AlertDelivery"]] = relationship(back_populates="status")
+
+    #REL
+
+    deliveries: Mapped[list["AlertDelivery"]] = relationship(back_populates="status") #H
 
 
 # Уровень важности оповещения
@@ -38,7 +41,7 @@ class AlertSeverity(Base):
     __tablename__ = "alert_severities"
     title: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
 
-    alerts: Mapped[list["Alert"]] = relationship(back_populates="severity")
+    alerts: Mapped[list["Alert"]] = relationship(back_populates="severity") #H
 
 
 # draft, pending, active, completed, cancelled.
@@ -48,7 +51,8 @@ class AlertStatus(Base):
     name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     description: Mapped[str] = mapped_column(Text)
 
-    alerts: Mapped[list["Alert"]] = relationship(back_populates="current_status")
+    alerts: Mapped[list["Alert"]] = relationship(back_populates="current_status") #H
+    alert_statuses_history: Mapped[list["AlertStatusHistory"]] = relationship(back_populates="status") #H
 
 
 class AlertType(Base):
@@ -56,7 +60,7 @@ class AlertType(Base):
 
     name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
 
-    alerts: Mapped[list["Alert"]] = relationship(back_populates="alert_type")
+    alerts: Mapped[list["Alert"]] = relationship(back_populates="alert_type") #H
 
 
 class ReviewDecision(Base):
@@ -64,15 +68,13 @@ class ReviewDecision(Base):
     name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     description: Mapped[str | Null] = mapped_column(Text, nullable=True)
 
-    proposals: Mapped[list["AlertProposal"]] = relationship(back_populates="decision")
+    proposals: Mapped[list["AlertProposal"]] = relationship(back_populates="decision") #H
 
 
 class AlertProposal(Base):
     __tablename__ = "alert_proposals"
 
-    alert_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("alerts.id"), nullable=True
-    )
+    alert_id: Mapped[UUID] = mapped_column(ForeignKey("alerts.id"), nullable=False)
 
     reviewed_by: Mapped[UUID | None] = mapped_column(
         ForeignKey("users.id"), nullable=True
@@ -86,15 +88,17 @@ class AlertProposal(Base):
         Uuid, ForeignKey("review_decisions.id"), nullable=False
     )
 
-    review_comment: Mapped[str] = mapped_column(Text, nullable=False)
+    review_comment: Mapped[str | Null] = mapped_column(Text, nullable=True)
+
+    #REL
 
     reviewer: Mapped["User | None"] = relationship(
         foreign_keys=[reviewed_by], back_populates="proposals"
-    )
+    ) #H
 
-    alert: Mapped["Alert | None"] = relationship(back_populates="proposal")
+    alert: Mapped["Alert | None"] = relationship(back_populates="proposal") #H
 
-    decision: Mapped["ReviewDecision"] = relationship(back_populates="proposals")
+    decision: Mapped["ReviewDecision"] = relationship(back_populates="proposals") #H
 
 
 class AlertDelivery(Base):
@@ -122,15 +126,17 @@ class AlertDelivery(Base):
 
     acknowledgement_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
-    alert: Mapped["Alert"] = relationship("Alert", back_populates="deliveries")
+    #REL
 
-    node: Mapped["Node"] = relationship(back_populates="deliveries")
+    alert: Mapped["Alert"] = relationship("Alert", back_populates="deliveries") #H
 
-    attempts: Mapped[list["DeliveryAttempt"]] = relationship(
+    node: Mapped["Node"] = relationship(back_populates="deliveries") #H
+
+    attempts: Mapped[list["DeliveryAttempt"]] = relationship( #H
         "DeliveryAttempt", back_populates="delivery", cascade="all, delete-orphan"
-    )
+    ) 
 
-    status: Mapped["AlertDeliveryStatus"] = relationship(back_populates="deliveries")
+    status: Mapped["AlertDeliveryStatus"] = relationship(back_populates="deliveries") #H
 
     __table_args__ = (
         UniqueConstraint("alert_id", "node_id", name="uq_alert_delivery_node"),
@@ -154,11 +160,12 @@ class AlertStatusHistory(Base):
         Uuid, ForeignKey("users.id"), nullable=False
     )
 
-    alert: Mapped["Alert"] = relationship(back_populates="alert_statuses_history")
-    status: Mapped["AlertStatus"] = relationship(
+    #REL
+    alert: Mapped["Alert"] = relationship(back_populates="alert_statuses_history") #H
+    status: Mapped["AlertStatus"] = relationship( #H
         back_populates="alert_statuses_history"
-    )
-    editor: Mapped["User"] = relationship(back_populates="alert_change_history")
+    ) 
+    editor: Mapped["User"] = relationship(back_populates="alert_change_history") #H
 
 
 class AlertVersion(Base):
@@ -186,9 +193,10 @@ class AlertVersion(Base):
 
     snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
 
-    alert: Mapped["Alert"] = relationship(back_populates="versions")
-    prev_version: Mapped["AlertVersion"] = relationship(back_populates="next_version")
-    editor: Mapped["User"] = relationship(back_populates="edited_versions")
+    #REL
+    alert: Mapped["Alert"] = relationship(back_populates="versions") #H
+    prev_version: Mapped["AlertVersion"] = relationship() #H
+    editor: Mapped["User"] = relationship(back_populates="edited_versions") #H
 
 
 class Alert(Base):
@@ -216,17 +224,18 @@ class Alert(Base):
     )
     is_test: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
+    #CONST
     CheckConstraint("ends_at IS NULL OR ends_at >= starts_at", name="check_alert_dates")
 
-    creator: Mapped["User"] = relationship(back_populates="created_alerts")
-    current_status: Mapped["AlertStatus"] = relationship(back_populates="alerts")
-    severity: Mapped["AlertSeverity"] = relationship(back_populates="alerts")
-    alert_type: Mapped["AlertType"] = relationship(back_populates="alerts")
-    versions: Mapped[list["AlertVersion"]] = relationship(back_populates="alert")
-    deliveries: Mapped[list["AlertDelivery"]] = relationship(
-        "AlertDelivery", back_populates="alert"
-    )
-    alert_territories: Mapped[list["AlertTerritory"]] = relationship(  # noqa: F821
+    #REL
+    creator: Mapped["User"] = relationship(back_populates="created_alerts") #H
+    current_status: Mapped["AlertStatus"] = relationship(back_populates="alerts") #H
+    severity: Mapped["AlertSeverity"] = relationship(back_populates="alerts") #H
+    alert_type: Mapped["AlertType"] = relationship(back_populates="alerts") #H
+    versions: Mapped[list["AlertVersion"]] = relationship(back_populates="alert") #H
+    deliveries: Mapped[list["AlertDelivery"]] = relationship(back_populates="alert") #H
+    alert_territories: Mapped[list["AlertTerritory"]] = relationship(  # noqa: F821 #H
         back_populates="alert"
     )
-    proposal: Mapped["AlertProposal"] = relationship(back_populates="alert")
+    proposal: Mapped["AlertProposal"] = relationship(back_populates="alert") #H
+    alert_statuses_history: Mapped[list["AlertStatusHistory"]] = relationship(back_populates="alert") #H

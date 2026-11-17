@@ -22,9 +22,12 @@ class AlertTerritory(Base):
         ForeignKey("territories.id"), nullable=False, index=True
     )
 
-    alert: Mapped["Alert"] = relationship(back_populates="alert_territories")  # noqa: F821
+    # REL
+    alert: Mapped["Alert"] = relationship(back_populates="alert_territories")  # noqa: F821 #H
 
-    territory: Mapped["Territory"] = relationship(back_populates="alert_territories")
+    territory: Mapped["Territory"] = relationship(  # H
+        back_populates="alert_territories"
+    )
 
 
 class Territory(Base):
@@ -38,6 +41,8 @@ class Territory(Base):
         Geometry(geometry_type="MULTIPOLYGON", srid=4326, spatial_index=True),
         nullable=False,
     )
-    alert_territories: Mapped[list["AlertTerritory"]] = relationship(
-        "AlertTerritory", back_populates="territory"
+
+    # REL
+    alert_territories: Mapped[list["AlertTerritory"]] = relationship(  # H
+        back_populates="territory"
     )
