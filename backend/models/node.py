@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
+from core.config import DEFAULT_DATETIME_FUNK
 from sqlalchemy import (
     DOUBLE_PRECISION,
     CheckConstraint,
@@ -12,7 +13,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from core.config import DEFAULT_DATETIME_FUNK
 from models.base import Base
 
 

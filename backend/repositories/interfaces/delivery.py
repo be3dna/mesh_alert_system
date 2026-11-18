@@ -4,11 +4,12 @@ from uuid import UUID
 from models.alert import AlertDelivery
 from models.delivery_attempt import DeliveryAttempt
 from repositories.interfaces.base import IRepository
+from repositories.pagination import Page, Pagination
 
 
 class IAlertDeliveryRepository(IRepository[AlertDelivery]):
     @abstractmethod
-    async def get_by_alert(self, alert_id: UUID) -> list[AlertDelivery]: ...
+    async def get_by_alert(self, alert_id: UUID, pagination:Pagination = Pagination) -> Page[AlertDelivery]: ...
 
     @abstractmethod
     async def get_by_alert_and_node(
@@ -16,9 +17,9 @@ class IAlertDeliveryRepository(IRepository[AlertDelivery]):
     ) -> AlertDelivery | None: ...
 
     @abstractmethod
-    async def get_by_status(self, status_id: UUID) -> list[AlertDelivery]: ...
+    async def get_by_status(self, status_id: UUID, pagination:Pagination = Pagination) -> Page[AlertDelivery]: ...
 
 
 class IDeliveryAttemptRepository(IRepository[DeliveryAttempt]):
     @abstractmethod
-    async def get_by_delivery(self, delivery_id: UUID) -> list[DeliveryAttempt]: ...
+    async def get_by_delivery(self, delivery_id: UUID, pagination:Pagination = Pagination) -> Page[DeliveryAttempt]: ...

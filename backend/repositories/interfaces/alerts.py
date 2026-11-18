@@ -15,19 +15,29 @@ from models.alert import (
 )
 from repositories.interfaces.base import INamedRepository, IRepository
 
+from backend.repositories.pagination import Page, Pagination
+
 
 class IAlertRepository(IRepository[Alert]):
     @abstractmethod
-    async def get_active(self, at: datetime) -> list[Alert]: ...
+    async def get_active(
+        self, at: datetime, pagination: Pagination = Pagination
+    ) -> Page[Alert]: ...
 
     @abstractmethod
-    async def get_by_status(self, status_id: UUID) -> list[Alert]: ...
+    async def get_by_status(
+        self, status_id: UUID, pagination: Pagination = Pagination
+    ) -> Page[Alert]: ...
 
     @abstractmethod
-    async def get_by_author(self, user_id: UUID) -> list[Alert]: ...
+    async def get_by_author(
+        self, user_id: UUID, pagination: Pagination = Pagination
+    ) -> Page[Alert]: ...
 
     @abstractmethod
-    async def get_by_territory(self, territory_id: UUID) -> list[Alert]: ...
+    async def get_by_territory(
+        self, territory_id: UUID, pagination: Pagination = Pagination
+    ) -> Page[Alert]: ...
 
     @abstractmethod
     async def search(
@@ -35,14 +45,15 @@ class IAlertRepository(IRepository[Alert]):
         severity_id: UUID | None = None,
         status_id: UUID | None = None,
         alert_type_id: UUID | None = None,
-        limit: int = 50,
-        offset: int = 0,
-    ) -> list[Alert]: ...
+        pagination: Pagination = Pagination,
+    ) -> Page[Alert]: ...
 
 
 class IAlertVersionRepository(IRepository[AlertVersion]):
     @abstractmethod
-    async def get_versions(self, alert_id: UUID) -> list[AlertVersion]: ...
+    async def get_versions(
+        self, alert_id: UUID, pagination: Pagination = Pagination
+    ) -> Page[AlertVersion]: ...
 
     @abstractmethod
     async def get_latest(self, alert_id: UUID) -> AlertVersion | None: ...
@@ -50,12 +61,16 @@ class IAlertVersionRepository(IRepository[AlertVersion]):
 
 class IAlertStatusHistoryRepository(IRepository[AlertStatusHistory]):
     @abstractmethod
-    async def get_history(self, alert_id: UUID) -> list[AlertStatusHistory]: ...
+    async def get_history(
+        self, alert_id: UUID, pagination: Pagination = Pagination
+    ) -> Page[AlertStatusHistory]: ...
 
 
 class IAlertProposalRepository(IRepository[AlertProposal]):
     @abstractmethod
-    async def get_pending(self, alert_id: UUID) -> AlertProposal: ...
+    async def get_pending(
+        self, pagination: Pagination = Pagination
+    ) -> Page[AlertProposal]: ...
 
     @abstractmethod
     async def get_by_reviewer(self, reviewer_id: UUID) -> AlertProposal: ...

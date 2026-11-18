@@ -4,6 +4,7 @@ from uuid import UUID
 from models.role import Role, RoleHistory
 from models.user import User
 from repositories.interfaces.base import IRepository
+from repositories.pagination import Page, Pagination
 
 
 class IUserRepository(IRepository[User]):
@@ -14,7 +15,9 @@ class IUserRepository(IRepository[User]):
     async def email_exists(self, email: str) -> bool: ...
 
     @abstractmethod
-    async def get_by_role(self, role_id: UUID) -> list[User]: ...
+    async def get_by_role(
+        self, role_id: UUID, pagination: Pagination = Pagination
+    ) -> Page[User]: ...
 
     @abstractmethod
     async def count_active_by_role(self, role_id: UUID) -> int: ...
@@ -27,4 +30,6 @@ class IRoleRepository(IRepository[Role]):
 
 class IRoleHistoryRepository(IRepository[RoleHistory]):
     @abstractmethod
-    async def get_user_history(self, user_id: UUID) -> list[RoleHistory]: ...
+    async def get_user_history(
+        self, user_id: UUID, pagination: Pagination = Pagination
+    ) -> Page[RoleHistory]: ...

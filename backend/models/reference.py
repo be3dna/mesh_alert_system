@@ -4,7 +4,6 @@ from uuid import UUID
 from sqlalchemy import DateTime, ForeignKey, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from core.config import DEFAULT_DATETIME_FUNK
 from models.base import Base
 
 
