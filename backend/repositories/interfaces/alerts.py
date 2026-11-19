@@ -45,7 +45,11 @@ class IAlertRepository(IRepository[Alert]):
         severity_id: UUID | None = None,
         status_id: UUID | None = None,
         alert_type_id: UUID | None = None,
-        pagination: Pagination = Pagination,
+        starts_from: datetime | None = None,
+        starts_to: datetime | None = None,
+        territory_id: UUID | None = None,
+        is_test: bool | None = None,
+        pagination: Pagination | None = None,
     ) -> Page[Alert]: ...
 
 

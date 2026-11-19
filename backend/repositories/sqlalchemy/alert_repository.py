@@ -1,5 +1,7 @@
+from datetime import datetime
 from uuid import UUID
 
+from backend.models.territory import AlertTerritory
 from models.alert import (
     Alert,
     AlertDeliveryStatus,
@@ -27,7 +29,7 @@ from repositories.sqlalchemy.base import (
     SQLAlchemyNamedRepository,
     SQLAlchemyRepository,
 )
-from sqlalchemy import select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -35,12 +37,95 @@ class SqlAlchemyAlertRepository(SQLAlchemyRepository[Alert], IAlertRepository):
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_by_id(self, alert_id: UUID) -> Alert | None:
-        stmt = select(Alert).where(Alert.id == alert_id)
+    async def get_active(self, at, pagination=Pagination):
+        stmt = select(Alert).where(
+            Alert.starts_at.between(at, datetime.now()), Alert.ends_at > datetime.now()
+        )
 
-        result = await self.session.execute(stmt)
+        return self._paginate(stmt, pagination)
 
-        return result.scalar_one_or_none()
+    async def get_by_status(self, status_id, pagination=Pagination):
+        stmt = (
+            select(Alert)
+            .where(Alert.current_status_id == status_id)
+            .order_by(desc(Alert.created_at))
+        )
+
+        return self._paginate(stmt, pagination)
+
+    async def get_by_author(self, user_id, pagination=Pagination):
+        stmt = (
+            select(Alert)
+            .where(Alert.created_by == user_id)
+            .order_by(desc(Alert.created_at))
+        )
+        return self._paginate(stmt, pagination)
+
+    async def get_by_territory(self, territory_id, pagination=Pagination):
+        stmt = (
+            select(Alert)
+            .where(Alert.alert_territories.contains(territory_id))
+            .order_by(desc(Alert.created_at))
+        )
+        return self._paginate(stmt, pagination)
+
+    async def search(
+        self,
+        severity_id: UUID | None = None,
+        status_id: UUID | None = None,
+        alert_type_id: UUID | None = None,
+        starts_from: datetime | None = None,
+        starts_to: datetime | None = None,
+        territory_id: UUID | None = None,
+        is_test: bool | None = None,
+        pagination: Pagination | None = None,
+    ):
+        stmt = select(Alert)
+
+        # Динамическая фильтрация
+        if severity_id is not None:
+            stmt = stmt.where(Alert.severity_id == severity_id)
+
+        if status_id is not None:
+            stmt = stmt.where(Alert.current_status_id == status_id)
+
+        if alert_type_id is not None:
+            stmt = stmt.where(Alert.alert_type_id == alert_type_id)
+
+        if starts_from is not None:
+            stmt = stmt.where(
+                (Alert.ends_at >= starts_from) | (Alert.ends_at.is_(None))
+            )
+
+        if starts_to is not None:
+            stmt = stmt.where(Alert.starts_at <= starts_to)
+
+        if territory_id is not None:
+            stmt = stmt.where(
+                Alert.alert_territories.any(AlertTerritory.territory_id == territory_id)
+            )
+        if is_test is not None:
+            stmt = stmt.where(Alert.is_test == is_test)
+
+        count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
+
+        total = await self.session.scalar(count_stmt)
+
+        # Сортировка
+        stmt = stmt.order_by(Alert.created_at.desc(), Alert.id.desc())
+
+        # Пагинация
+        if pagination is not None:
+            stmt = stmt.offset(pagination.offset).limit(pagination.limit)
+
+        result = await self.session.scalars(stmt)
+
+        return Page(
+            items=result.all(),
+            total=total,
+            limit=pagination.limit,
+            offset=pagination.offset,
+        )
 
 
 class AlertVersionRepository(
