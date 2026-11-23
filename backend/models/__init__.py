@@ -1,5 +1,6 @@
 from models.access_group import *
 from models.alert import *
+from models.auth_session import *
 from models.base import *
 from models.communication_channel import *
 from models.delivery_attempt import *

@@ -2,7 +2,7 @@ from uuid import UUID
 
 from sqlalchemy import Uuid
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-import uuid6
+from uuid6 import uuid6
 
 
 class Base(DeclarativeBase):
