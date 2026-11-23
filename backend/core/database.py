@@ -19,7 +19,7 @@ else:
 
 engine = create_async_engine(
     database_url,
-    echo=True,
+    hide_parameters=True,
     pool_pre_ping=True
 )
 
