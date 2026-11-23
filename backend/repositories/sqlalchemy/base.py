@@ -65,6 +65,14 @@ class SQLAlchemyRepository(IRepository[T], Generic[T]):
         await self.session.flush()
         return True
 
+    def _locked (self):
+        return (
+            select(self.model)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+
+
 
 class SQLAlchemyNamedRepository(
     SQLAlchemyRepository[T],

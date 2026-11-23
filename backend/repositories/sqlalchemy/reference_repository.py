@@ -17,7 +17,7 @@ class SQLAlchemyReferenceArticleRepository(
     SQLAlchemyRepository[ReferenceArticle], IReferenceArticleRepository
 ):
     def __init__(self, session: AsyncSession):
-        self.session = session
+        super().__init__(session, ReferenceArticle)
 
     async def get_by_category(
         self, category_id: UUID, pagination: Pagination = Pagination
@@ -64,7 +64,7 @@ class SQLAlchemyReferenceCategoryRepository(
     SQLAlchemyNamedRepository[ReferenceCategory], IReferenceCategoryRepository
 ):
     def __init__(self, session: AsyncSession):
-        self.session = session
+        super().__init__(session, ReferenceCategory)
 
 
 class SQLAlchemyAccessGroupRepository(

@@ -1,7 +1,6 @@
 from datetime import datetime
 from uuid import UUID
 
-from backend.models.territory import AlertTerritory
 from models.alert import (
     Alert,
     AlertDeliveryStatus,
@@ -31,6 +30,8 @@ from repositories.sqlalchemy.base import (
 )
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.models.territory import AlertTerritory
 
 
 class SqlAlchemyAlertRepository(SQLAlchemyRepository[Alert], IAlertRepository):
@@ -208,6 +209,12 @@ class AlertProposalRepository(
         )
 
         return await self._paginate(stmt, pagination)
+
+    async def get_by_alert_id(self, alert_id):
+        stmt = select(AlertProposal).where(AlertProposal.alert_id==alert_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
 
 
 class AlertSeverityRepository(

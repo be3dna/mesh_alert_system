@@ -77,6 +77,11 @@ class IAlertProposalRepository(IRepository[AlertProposal]):
     ) -> Page[AlertProposal]: ...
 
     @abstractmethod
+    async def get_by_alert_id(
+        self, alert_id:UUID
+    ) -> AlertProposal: ...
+
+    @abstractmethod
     async def get_by_reviewer(self, reviewer_id: UUID) -> AlertProposal: ...
 
 

@@ -19,6 +19,9 @@ class IAlertDeliveryRepository(IRepository[AlertDelivery]):
     @abstractmethod
     async def get_by_status(self, status_id: UUID, pagination:Pagination = Pagination) -> Page[AlertDelivery]: ...
 
+    @abstractmethod
+    async def get_by_status_and_alert(self, alert_id: UUID, status_id:UUID, pagination:Pagination) -> Page[AlertDelivery]:...
+        
 
 class IDeliveryAttemptRepository(IRepository[DeliveryAttempt]):
     @abstractmethod

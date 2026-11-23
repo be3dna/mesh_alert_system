@@ -36,7 +36,11 @@ class SQLAlchemyAlertDeliveryRepository(SQLAlchemyRepository[AlertDelivery],IAle
         stmt = select(AlertDelivery).where(AlertDelivery.status_id==status_id).order_by(desc(AlertDelivery.started_at))
         return await self._paginate(stmt, pagination)
 
+    async def get_by_status_and_alert(self, alert_id: UUID, status_id:UUID, pagination:Pagination) -> Page[AlertDelivery]:
+        stmt = select(AlertDelivery).where(AlertDelivery.alert_id==alert_id, AlertDelivery.status_id==status_id)
+        return await self._paginate(stmt, pagination)
 
+    
 class SQLAlchemyDeliveryAttemptRepository(SQLAlchemyRepository[DeliveryAttempt],IDeliveryAttemptRepository):
     
     async def get_by_delivery(self, delivery_id: UUID, pagination:Pagination = Pagination) -> Page[DeliveryAttempt]:

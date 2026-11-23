@@ -9,7 +9,7 @@ from repositories.interfaces.users import (
 )
 from repositories.pagination import Page, Pagination
 from repositories.sqlalchemy.base import SQLAlchemyNamedRepository, SQLAlchemyRepository
-from sqlalchemy import desc, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -38,18 +38,21 @@ class SQLAlchemyUserRepository(SQLAlchemyRepository[User], IUserRepository):
 
 class SQLAlchemyRoleRepository(SQLAlchemyNamedRepository[Role], IRoleRepository):
     def __init__(self, session: AsyncSession):
-        self.session = session
+        super().__init__(session, Role)
 
 
 class SQLAlchemyRoleHistoryRepository(
     SQLAlchemyRepository[RoleHistory], IRoleHistoryRepository
 ):
+    def __init__(self, session: AsyncSession):
+        super().__init__(session, RoleHistory)
+
     async def get_user_history(
         self, user_id: UUID, pagination: Pagination = Pagination
     ) -> Page[RoleHistory]:
         stmt = (
             select(RoleHistory)
             .where(RoleHistory.user_id == user_id)
-            .order_by(desc(RoleHistory.assigned_at))
+            .order_by(RoleHistory.assigned_at.desc(), RoleHistory.id.desc())
         )
         return await self._paginate(stmt, pagination)
