@@ -15,7 +15,7 @@ class AlertResponse(BaseModel):
     alert_type_id: UUID
     created_at: datetime
     starts_at: datetime
-    ends_at: datetime
+    ends_at: datetime | None
     created_by: UUID
     current_status_id: UUID
     is_test: bool
