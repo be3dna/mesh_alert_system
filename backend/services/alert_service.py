@@ -1,10 +1,14 @@
+from datetime import datetime
 from uuid import UUID
 
+from backend.state.proposal_status import ProposalStatus
 from core.exceptions import (
     AlertNotFoundError,
+    AlreadyReviewedError,
+    InvalidAlertStatusError,
     InvalidTerritoryError,
     StatusNotFoundError,
-    UserNotFoundError,
+    TimeMachineError,
 )
 from models.alert import Alert, AlertProposal, AlertStatusHistory, AlertVersion
 from models.territory import AlertTerritory
@@ -21,10 +25,12 @@ from repositories.interfaces.users import IRoleRepository, IUserRepository
 from repositories.pagination import Page, Pagination
 from schemas.alert import AlertCreate, AlertFilters, AlertSnapshot, AlertUpdate
 from schemas.proposals import ProposalCreate, ProposalReview
-from services.premission_service import PermissionDeniedError, PermissionService
-from services.premissions import Permission
-from sqlalchemy import delete
+from backend.services.permission_service import PermissionDeniedError, PermissionService
+from backend.services.permissions import Permission
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from state.alert_state_machine import AlertStateMachine
+from state.alert_status import AlertStatus
 
 
 class AlertService:
@@ -53,7 +59,7 @@ class AlertService:
         self.permissions = premissions
         self.proposals = proposal
         self.territories = territories
-    
+
     @staticmethod
     def _build_alert_snapshot(
         alert: Alert,
@@ -72,27 +78,21 @@ class AlertService:
 
     async def create_alert(self, data: AlertCreate, actor_id: UUID) -> Alert:
         async with self.session.begin():
-            actor = await self.users.get_by_id(actor_id)
-
-            if actor is None:
-                raise UserNotFoundError(actor_id)
-
-            can_create = self.permissions.has_permission(
-                actor.role.name,
-                Permission.ALERT_CREATE,
-            )
-
-            can_propose = self.permissions.has_permission(
-                actor.role.name,
-                Permission.ALERT_PROPOSE,
-            )
-
-            if not can_create and not can_propose:
+            if not await self.permissions.user_permissions_check(
+                actor_id, [Permission.ALERT_CREATE]
+            ):
                 raise PermissionDeniedError()
 
-            requires_review = not can_create
-            status_name = "pending_review" if requires_review else "created"
+            requires_review = not await self.permissions.user_permissions_check(
+                actor_id, [Permission.ALERT_PROPOSE]
+            )
+
+            status_name = AlertStateMachine.initial_status(
+                requires_review=requires_review
+            )
             status = await self.statuses.get_by_name(status_name)
+            if status is None:
+                raise StatusNotFoundError(status_name)
 
             alert = Alert(
                 title=data.title,
@@ -108,17 +108,6 @@ class AlertService:
 
             await self.repository.add(alert)
             await self.session.flush()
-
-            if requires_review:
-                decision = await self.decisions.get_by_name("proposed")
-                proposal = AlertProposal(
-                    alert_id=alert.id,
-                    decision_id=decision.id,
-                    reviewed_by=None,
-                    reviewed_at=None,
-                    review_comment=None,
-                )
-                await self.proposals.add(proposal)
 
             alert_history_note = AlertStatusHistory(
                 alert_id=alert.id,
@@ -179,8 +168,9 @@ class AlertService:
         return alert
 
     async def get_alerts(
-        self, filters: AlertFilters, pagination: Pagination = Pagination
+        self, filters: AlertFilters, pagination: Pagination | None = None
     ) -> Page[Alert]:
+        pagination = pagination or Pagination()
         page = await self.repository.search(
             severity_id=filters.severity_id,
             status_id=filters.status_id,
@@ -197,7 +187,13 @@ class AlertService:
         self,
         alert_id: UUID,
         territories_ids: list[UUID],
+        actor_id: UUID,
     ):
+        if not await self.permissions.user_permissions_check(
+            actor_id, [Permission.ALERT_UPDATE, Permission.ALERT_UPDATE_ANY]
+        ):
+            raise PermissionDeniedError()
+
         await self.session.execute(
             delete(AlertTerritory).where(AlertTerritory.alert_id == alert_id)
         )
@@ -213,81 +209,15 @@ class AlertService:
         )
 
     async def update_alert(
-        self, alert_id: UUID, data: AlertUpdate, actor_id: UUID
+        self,
+        alert_id: UUID,
+        data: AlertUpdate,
+        actor_id: UUID,
     ) -> Alert:
-        actor = await self.users.get_by_id(actor_id)
-
-        if actor is None:
-            raise UserNotFoundError(actor_id)
-
-        can_udpate = self.permissions.has_permission(
-            actor.role.name,
-            Permission.ALERT_UPDATE,
-        )
-        can_update_any = self.permissions.has_permission(
-            actor.role.name, Permission.ALERT_UPDATE_ANY
-        )
-
-        if not can_udpate and not can_update_any:
-            raise PermissionDeniedError()
-
-        alert = await self.repository.get_by_id(alert_id)
-
-        if alert is None:
-            raise AlertNotFoundError(alert_id)
-
-        if alert.created_by != actor_id and not can_update_any:
-            raise PermissionDeniedError()
-
-        update_data = data.model_dump(exclude_unset=True)
-
-        territories_ids = update_data.pop("territories_id", None)
-        change_reason = update_data.pop("change_reason", None)
-
-        for field, value in update_data.items():
-            setattr(alert, field, value)
-
-        if territories_ids is not None:
-            await self.update_territories(alert_id, territories_ids)
-
-        await self.session.flush()
-
-        last_versiton = await self.versions.get_latest(alert.id)
-
-        snapshot = self._build_alert_snapshot(
-            alert,
-            territories_ids,
-        )
-
-        alert_version = AlertVersion(
-            alert_id=alert.id,
-            alert_version_number=last_versiton.alert_version_number + 1,
-            previous_version_id=last_versiton.id,
-            changed_by=actor_id,
-            change_reason=change_reason,
-            snapshot=snapshot,
-        )
-
-        await self.versions.add(alert_version)
-
-        return alert
-
-    async def cancel_alert(self, alert_id: UUID, actor_id: UUID, reason: str) -> Alert:
         async with self.session.begin():
-            actor = await self.users.get_by_id(actor_id)
-
-            if actor is None:
-                raise UserNotFoundError(actor_id)
-
-            can_cancel = self.permissions.has_permission(
-                actor.role.name,
-                Permission.ALERT_CANCEL,
-            )
-            can_cancel_any = self.permissions.has_permission(
-                actor.role.name,
-                Permission.ALERT_CANCEL_ANY,
-            )
-            if not can_cancel and not can_cancel_any:
+            if not await self.permissions.user_permissions_check(
+                actor_id, [Permission.ALERT_UPDATE, Permission.ALERT_UPDATE_ANY]
+            ):
                 raise PermissionDeniedError()
 
             alert = await self.repository.get_by_id(alert_id)
@@ -295,96 +225,152 @@ class AlertService:
             if alert is None:
                 raise AlertNotFoundError(alert_id)
 
-            if alert.created_by != actor_id and not can_cancel_any:
+            if (
+                alert.created_by != actor_id
+                and not await self.permissions.user_permissions_check(
+                    Permission.ALERT_UPDATE_ANY
+                )
+            ):
                 raise PermissionDeniedError()
 
-            canceled_status = await self.statuses.get_by_name("canceled")
+            update_data = data.model_dump(exclude_unset=True)
 
-            if canceled_status is None:
-                raise StatusNotFoundError("canceled")
+            territory_ids = update_data.pop("territories_id", None)
+            change_reason = update_data.pop("change_reason", None)
 
-            alert.current_status_id = canceled_status.id
-            alert.current_status = canceled_status
-            last_versiton = await self.versions.get_latest(alert.id)
-            territories_id = set()
+            # Изменяем обычные поля
+            for field, value in update_data.items():
+                setattr(alert, field, value)
 
-            territories_id_page = await self.territories.get_alert_territories(alert_id)
-            for t in territories_id_page.items:
-                territories_id.add(t.id)
-            current = len(territories_id)
+            # Обновляем территории, только если они переданы
+            if territory_ids is not None:
+                territory_ids = list(set(territory_ids))
 
-            while territories_id_page.total > current:
-                territories_id_page = await self.territories.get_alert_territories(
-                    alert_id, Pagination(offset=current)
+                territories = await self.territories.get_by_ids(territory_ids)
+
+                if len(territories) != len(territory_ids):
+                    raise InvalidTerritoryError()
+
+                await self.update_territories(
+                    alert_id,
+                    territory_ids,
                 )
-                for t in territories_id_page.items:
-                    territories_id.add(t.id)
-                current = len(territories_id)
+
+            else:
+                # Получаем существующие территории
+                territory_ids = [
+                    item.territory_id
+                    for item in (
+                        await self.session.scalars(
+                            select(AlertTerritory).where(
+                                AlertTerritory.alert_id == alert_id
+                            )
+                        )
+                    ).all()
+                ]
+
+            await self.session.flush()
+
+            last_version = await self.versions.get_latest(alert.id)
 
             snapshot = self._build_alert_snapshot(
                 alert,
-                territories_id,
+                territory_ids,
             )
 
             alert_version = AlertVersion(
                 alert_id=alert.id,
-                alert_version_number=last_versiton.alert_version_number + 1,
-                previous_version_id=last_versiton.id,
+                alert_version_number=last_version.alert_version_number + 1,
+                previous_version_id=last_version.id,
                 changed_by=actor_id,
-                change_reason=reason,
+                change_reason=change_reason,
                 snapshot=snapshot,
             )
 
             await self.versions.add(alert_version)
 
-            await self.session.flush()
+        return alert
+
+    async def cancel_alert(self, alert_id: UUID, actor_id: UUID, reason: str) -> Alert:
+        async with self.session.begin():
+            if not await self.permissions.user_permissions_check(
+                actor_id, [Permission.ALERT_CANCEL, Permission.ALERT_CANCEL_ANY]
+            ):
+                raise PermissionDeniedError()
+
+            alert = await self.repository.get_by_id(alert_id)
+
+            if alert is None:
+                raise AlertNotFoundError(alert_id)
+
+            if (
+                alert.created_by != actor_id
+                and not await self.permissions.user_permissions_check(
+                    actor_id, [Permission.ALERT_CANCEL_ANY]
+                )
+            ):
+                raise PermissionDeniedError()
+
+            await self._change_status(alert, AlertStatus.CANCELED, actor_id, reason)
         return alert
 
     async def publish_alert(self, alert_id: UUID, actor_id: UUID) -> Alert:
-        actor = await self.users.get_by_id(actor_id)
+        async with self.session.begin():
+            if not await self.permissions.user_permissions_check(
+                actor_id, [Permission.ALERT_PUBLISH]
+            ):
+                raise PermissionDeniedError()
 
-        if actor is None:
-            raise UserNotFoundError(actor_id)
+            alert = await self.repository.get_by_id(alert_id)
 
-        can_publish = self.permissions.has_permission(
-            actor.role.name,
-            Permission.ALERT_PUBLISH,
-        )
-        if not can_publish:
-            raise PermissionDeniedError()
+            if alert is None:
+                raise AlertNotFoundError(alert_id)
 
-        alert = await self.repository.get_by_id(alert_id)
-
-        if alert is None:
-            raise AlertNotFoundError(alert_id)
-
-        published_status = await self.statuses.get_by_name("published")
-
-        if published_status is None:
-            raise StatusNotFoundError("published")
-
-        alert.current_status_id = published_status.id
-        alert.current_status = published_status
-        alert_history_note = AlertStatusHistory(
-            alert_id=alert.id,
-            status_id=published_status.id,
-            reason="approved",
-            changed_by=actor_id,
-        )
-
-        await self.history.add(alert_history_note)
-
-        await self.session.flush()
+            await self._change_status(
+                alert, AlertStatus.PUBLISHED, actor_id, "publication"
+            )
         return alert
 
+    async def _change_status(
+        self, alert: Alert, target: AlertStatus, actor_id: UUID, reason: str
+    ) -> None:
+        await self.session.refresh(
+            alert, ["current_status_id", "current_status"], with_for_update=True
+        )
+        current = alert.current_status.name
+        if current == target == AlertStatus.CANCELED:
+            return
+        if not AlertStateMachine.can_transition(current, target):
+            raise InvalidAlertStatusError(
+                f"cannot transition from {current} to {target}"
+            )
+
+        status = await self.statuses.get_by_name(target)
+        if status is None:
+            raise StatusNotFoundError(target)
+
+        alert.current_status_id = status.id
+        alert.current_status = status
+        await self.history.add(
+            AlertStatusHistory(
+                alert_id=alert.id,
+                status_id=status.id,
+                reason=reason,
+                changed_by=actor_id,
+            )
+        )
+        await self.session.flush()
+
     async def get_versions(
-        self, alert_id: UUID, pagination: Pagination = Pagination
+        self, alert_id: UUID, pagination: Pagination | None = None
     ) -> Page[AlertVersion]:
+        pagination = pagination or Pagination()
         return await self.versions.get_versions(alert_id, pagination)
 
     async def get_status_history(
-        self, alert_id: UUID, pagination: Pagination = Pagination
+        self, alert_id: UUID, pagination: Pagination | None = None
     ) -> Page[AlertStatusHistory]:
+        pagination = pagination or Pagination()
         return await self.history.get_history(alert_id, pagination)
 
 
@@ -392,17 +378,66 @@ class ProposalService:
     def __init__(
         self,
         repository: IAlertProposalRepository,
+        session: AsyncSession,
+        permissions: PermissionService,
     ):
         self.repository = repository
+        self.session = session
+        self.permissions = permissions
 
     async def create_proposal(
         self, data: ProposalCreate, actor_id: UUID
-    ) -> AlertProposal: ...
+    ) -> AlertProposal:
+        if not await self.permissions.user_permissions_check(
+            actor_id, [Permission.ALERT_PROPOSE]
+        ):
+            raise PermissionDeniedError()
 
-    async def get_pending(self) -> list[AlertProposal]: ...
+        proposal = AlertProposal(
+            alert_id=data.alert_id,
+            decision_id=data.decision_id,
+            reviewed_by=actor_id,
+            reviewed_at=data.reviewed_at,
+            review_comment=data.review_comment,
+        )
+        await self.proposals.add(proposal)
+
+    async def get_pending(
+        self, actor_id: UUID, pagination: Pagination | None = None
+    ) -> Page[AlertProposal]:
+        if not await self.permissions.user_permissions_check(
+            actor_id, [Permission.ALERT_REVIEW]
+        ):
+            raise PermissionDeniedError()
+
+        pagination = pagination or Pagination()
+
+        return await self.repository.get_pending(pagination)
 
     async def review_proposal(
         self, proposal_id: UUID, data: ProposalReview, actor_id: UUID
-    ) -> AlertProposal: ...
+    ) -> AlertProposal:
+        async with self.session.begin():
+            if not await self.permissions.user_permissions_check(
+                actor_id, [Permission.ALERT_REVIEW]
+            ):
+                raise PermissionDeniedError()
 
-    async def convert_to_draft(self, proposal_id: UUID, actor_id: UUID) -> Alert: ...
+            proposal = await self.repository.get_by_id(proposal_id)
+            await self.session.flush(proposal.decision)
+
+            if (
+                proposal.decision.name == ProposalStatus.APPROVED
+                or proposal.decision.name == ProposalStatus.REJECTED
+            ):
+                raise AlreadyReviewedError(proposal_id)
+
+            if data.reviewed_at > datetime.now():
+                raise TimeMachineError()
+                
+            update_data = data.model_dump(exclude_unset=True)
+            for field, value in update_data.items():
+                setattr(proposal, field, value)
+
+            await self.session.flash()
+        return proposal
